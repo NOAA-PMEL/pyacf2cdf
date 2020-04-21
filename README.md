@@ -1,5 +1,15 @@
 # pyacf2cdf
-python version of acf2cdf
+
+Python version of acf2cdf converter. Used to convert NOAA/PMEL/Atmospheric Chemistry ACF data format to netCDF. This updated converter moves away from using EPIC naming conventions (but still has some legacy pieces). 
+
+## Prerequisites
+
+Packages you will need:
+
+- pytz
+- netCDF4
+
+---
 
 ### Legal Disclaimer
 
