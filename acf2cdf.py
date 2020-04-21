@@ -6,49 +6,48 @@ import sys
 from netCDF4 import Dataset, date2num
 
 
-class Data():
-
+class Data:
     def __init__(self):
-        
-        self.EPS_GAP = 1.e35
+
+        self.EPS_GAP = 1.0e35
         self._data = dict()
         self._metadata = None
-        
-        self.path = './'
+
+        self.path = "./"
         self.base_filename = None
 
-        self._data['global'] = {
-            'PROJECT': '',
-            'PLATFORM': '',
-            'FILE_START_TIME': '',
-            'FILE_STOP_TIME': '',
-            'DATA_TYPE': '',
-            'VERSION': '',
-            'SUBMIT_DATE': '',
-            'SOURCE': '',
+        self._data["global"] = {
+            "PROJECT": "",
+            "PLATFORM": "",
+            "FILE_START_TIME": "",
+            "FILE_STOP_TIME": "",
+            "DATA_TYPE": "",
+            "VERSION": "",
+            "SUBMIT_DATE": "",
+            "SOURCE": "",
         }
 
-        self._data['remarks'] = []
+        self._data["remarks"] = []
 
-        self._data['dimesions'] = {
-            'time': None,
+        self._data["dimesions"] = {
+            "time": None,
             # 'dep': 1,
             # 'lat': 1,
             # 'lon': 1,
         }
 
-        self._data['time_parameters'] = []
+        self._data["time_parameters"] = []
 
-        self._data['parameters'] = {}
+        self._data["parameters"] = {}
         self.acf_param_fields = [
-            'name',
-            'units',
-            'instrument',
-            'legal_min_value',
-            'legal_max_value',
-            'missing_value_code',
-            'epic_key_code',
-            'parameter_notes',
+            "name",
+            "units",
+            "instrument",
+            "legal_min_value",
+            "legal_max_value",
+            "missing_value_code",
+            "epic_key_code",
+            "parameter_notes",
         ]
 
     def peek_line(self, fd):
@@ -60,7 +59,7 @@ class Data():
     def load_acf_file(self, fname, path=None):
 
         filename = fname
-        fname_parts = fname.split('.')
+        fname_parts = fname.split(".")
         self.base_filename = fname_parts[0]
         # print(self.base_filename)
 
@@ -68,93 +67,93 @@ class Data():
             # prepend path to fname
             self.path = path
             filename = path + fname
-        print(f'reading ACF: {filename}')
+        print(f"reading ACF: {filename}")
         # try:
         #     with open(filename, mode='r') as dfile:
         #         print(f'{dfile}')
         #         for line in list(dfile):
         try:
-            with open(filename, mode='r') as dfile:
+            with open(filename, mode="r") as dfile:
                 # print(f'{dfile}')
                 header = True
                 param_order = []
                 # for line in list(dfile):
-                    
+
                 while True:
                     if header:
 
                         next_line = self.peek_line(dfile)
-                        if next_line == '#HEADER#':
+                        if next_line == "#HEADER#":
                             line = dfile.readline().strip()
                             while True:
                                 next_line = self.peek_line(dfile)
-                                if next_line.startswith('#'):
+                                if next_line.startswith("#"):
                                     break
                                 else:
-                                    entry = dfile.readline().strip().split('=')
-                                    if entry[0] in self._data['global']:
-                                        self._data['global'][entry[0]] = entry[1]
-                        
-                        elif next_line == '#REMARKS#':
+                                    entry = dfile.readline().strip().split("=")
+                                    if entry[0] in self._data["global"]:
+                                        self._data["global"][entry[0]] = entry[1]
+
+                        elif next_line == "#REMARKS#":
                             line = dfile.readline().strip()
                             while True:
                                 next_line = self.peek_line(dfile)
-                                if next_line.startswith('#'):
+                                if next_line.startswith("#"):
                                     break
                                 else:
                                     entry = dfile.readline().strip()
-                                    self._data['remarks'].append(entry)
-                        
-                        elif next_line == '#TIME PARAMETERS#':
-                            line = dfile.readline().strip()
-                            params = dfile.readline().strip().split(' ')
-                            self._data['time_parameters'] = params
+                                    self._data["remarks"].append(entry)
 
-                        elif next_line == '#PARAMETER#':
+                        elif next_line == "#TIME PARAMETERS#":
+                            line = dfile.readline().strip()
+                            params = dfile.readline().strip().split(" ")
+                            self._data["time_parameters"] = params
+
+                        elif next_line == "#PARAMETER#":
                             line = dfile.readline().strip()
                             name = dfile.readline().strip()
-                            if name not in self._data['parameters']:
-                                self._data['parameters'][name] = {}
-                                self._data['parameters'][name]['parameter_notes'] = []
+                            if name not in self._data["parameters"]:
+                                self._data["parameters"][name] = {}
+                                self._data["parameters"][name]["parameter_notes"] = []
                                 param_order.append(name)
 
                             while True:
                                 next_line = self.peek_line(dfile)
-                                if next_line == '#PARAMETER NOTES#':
+                                if next_line == "#PARAMETER NOTES#":
                                     line = dfile.readline()
                                     next_line = self.peek_line(dfile)
-                                    while next_line[0] != '#':
+                                    while next_line[0] != "#":
                                         line = dfile.readline().strip()
-                                        self._data['parameters'][name]['parameter_notes'].append(
-                                            line
-                                        )
+                                        self._data["parameters"][name][
+                                            "parameter_notes"
+                                        ].append(line)
                                         next_line = self.peek_line(dfile)
-                                elif next_line.startswith('#'):
+                                elif next_line.startswith("#"):
                                     break
                                 else:
                                     line = dfile.readline().strip()  # units
-                                    self._data['parameters'][name]['instrument_label'] = (
-                                        dfile.readline().strip()
-                                    )
-                                    self._data['parameters'][name]['legal_min_value'] = (
-                                        dfile.readline().strip()
-                                    )
-                                    self._data['parameters'][name]['legal_max_value'] = (
-                                        dfile.readline().strip()
-                                    )
-                                    self._data['parameters'][name]['missing_value_code'] = (
-                                        dfile.readline().strip()
-                                    )
-                                    self._data['parameters'][name]['epic_key_code'] = (
-                                        dfile.readline().strip()
-                                    )
-                                
-                        elif next_line.startswith('#DATA'):
+                                    self._data["parameters"][name][
+                                        "instrument_label"
+                                    ] = dfile.readline().strip()
+                                    self._data["parameters"][name][
+                                        "legal_min_value"
+                                    ] = dfile.readline().strip()
+                                    self._data["parameters"][name][
+                                        "legal_max_value"
+                                    ] = dfile.readline().strip()
+                                    self._data["parameters"][name][
+                                        "missing_value_code"
+                                    ] = dfile.readline().strip()
+                                    self._data["parameters"][name][
+                                        "epic_key_code"
+                                    ] = dfile.readline().strip()
+
+                        elif next_line.startswith("#DATA"):
                             line = dfile.readline().strip()
-                            par = line.split(' ')
-                            for i in range(0,int(par[1])):
+                            par = line.split(" ")
+                            for i in range(0, int(par[1])):
                                 line = dfile.readline().strip()
-                            
+
                             header = False
 
                     else:
@@ -163,12 +162,12 @@ class Data():
                         if not row:
                             break
 
-                        vals = row.strip().split('\t')
+                        vals = row.strip().split("\t")
 
                         # for timep in self._data['time_parameters']:
                         #     yyyy = 2020
                         #     if timep == 'year':
-                        #         yyyy = 
+                        #         yyyy =
 
                         yyyy = vals[0]
                         MM = vals[1]
@@ -177,10 +176,10 @@ class Data():
                         mm = vals[4]
                         ss = vals[5]
 
-                        if 'time' not in self._data:
-                            self._data['time'] = []
-                        
-                        self._data['time'].append(
+                        if "time" not in self._data:
+                            self._data["time"] = []
+
+                        self._data["time"].append(
                             pytz.utc.localize(
                                 datetime(
                                     int(yyyy),
@@ -188,36 +187,34 @@ class Data():
                                     int(DD),
                                     int(hh),
                                     int(mm),
-                                    int(ss)
+                                    int(ss),
                                 )
                             )
                         )
 
                         for i in range(0, len(param_order)):
-                            col = i + 6 
+                            col = i + 6
 
                             if param_order[i] not in self._data:
                                 self._data[param_order[i]] = []
-                            self._data[param_order[i]].append(
-                                float(vals[col])
-                            )
+                            self._data[param_order[i]].append(float(vals[col]))
 
         # try:
         #     dfile = open(filename, mode='r')
         except FileNotFoundError as e:
-            print(f'File not found: {e}')
+            print(f"File not found: {e}")
             return None
-        
-        print('file loaded')
+
+        print("file loaded")
 
     def load_epic_file(self):
 
-        # TODO: make this settable but user but for now hardcoded        
+        # TODO: make this settable but user but for now hardcoded
         try:
-            json_file = open('epic.json', mode='r')
+            json_file = open("epic.json", mode="r")
             self.epic_key = json.load(json_file)
         except Exception as e:
-            print(f'write error epic: {e}')
+            print(f"write error epic: {e}")
             return None
 
         json_file.close()
@@ -226,75 +223,75 @@ class Data():
 
         self.load_epic_file()
 
-        outfile = self.base_filename + '.cdf'
+        outfile = self.base_filename + ".cdf"
 
-        print(f'writing netCDF file: {outfile}')
+        print(f"writing netCDF file: {outfile}")
         try:
-            nc = Dataset(outfile, 'w', format='NETCDF4')
+            nc = Dataset(outfile, "w", format="NETCDF4")
         except Exception as e:
-            print(f'write error AS: {e}')
+            print(f"write error AS: {e}")
             return None
 
         # create dimensions
-        time_dim = nc.createDimension('time', len(self._data['time']))
+        time_dim = nc.createDimension("time", len(self._data["time"]))
 
         # create variables
-        time_var = nc.createVariable('time', 'f8', ('time'))
+        time_var = nc.createVariable("time", "f8", ("time"))
         time_var.units = "seconds since 1970-01-01T00:00:00Z"
-        time_var[:] = date2num(
-            self._data['time'],
-            units=time_var.units
-        )
+        time_var[:] = date2num(self._data["time"], units=time_var.units)
 
-        for name, meta in self._data['parameters'].items():
-            if (meta['epic_key_code'] in self.epic_key):
-                epic = self.epic_key[meta['epic_key_code']]
+        for name, meta in self._data["parameters"].items():
+            if meta["epic_key_code"] in self.epic_key:
+                epic = self.epic_key[meta["epic_key_code"]]
 
                 par_name = f"{epic['name']}_{meta['epic_key_code']}"
                 par = nc.createVariable(
                     # par_name,
-                    epic['name'],
-                    'f8',
-                    ('time'),
+                    epic["name"],
+                    "f8",
+                    ("time"),
                 )
                 # par['name'] = epic['name']
                 # par.setncattr('name', epic['name'])
-                par.long_name = epic['long_name']
-                par.generic_name = epic['generic_name']
-                par.FORTRAN_format = epic['FORTRAN_format']
-                par.units = epic['units']
-                par.epic_code = meta['epic_key_code']
-                par.plot_lab = ''
-                par.instr_id = meta['instrument_label']
-                par.min_value = meta['legal_min_value']
-                par.max_value = meta['legal_max_value']
-                par.gap_value = meta['missing_value_code']
-                for i in range(0, len(meta['parameter_notes'])):
-                    note_name = f'note_{(i+1):02}'
-                    par.setncattr(note_name, meta['parameter_notes'][i])
+                par.long_name = epic["long_name"]
+                par.generic_name = epic["generic_name"]
+                par.FORTRAN_format = epic["FORTRAN_format"]
+                par.units = epic["units"]
+                par.epic_code = meta["epic_key_code"]
+                par.plot_lab = ""
+                par.instr_id = meta["instrument_label"]
+                par.min_value = meta["legal_min_value"]
+                par.max_value = meta["legal_max_value"]
+                par.gap_value = meta["missing_value_code"]
+                for i in range(0, len(meta["parameter_notes"])):
+                    note_name = f"note_{(i+1):02}"
+                    par.setncattr(note_name, meta["parameter_notes"][i])
                     # par[note_name] = meta['parameter_notes'][i]
 
-                vals = [x if x != float(par.gap_value) else self.EPS_GAP for x in self._data[name]]
+                vals = [
+                    x if x != float(par.gap_value) else self.EPS_GAP
+                    for x in self._data[name]
+                ]
                 # par[:] = self._data[name]
                 par[:] = vals
         #     var_name = data['name'] + '_' + data['epic_key_code']
 
         # set global attributes
-        for name, val in self._data['global'].items():
+        for name, val in self._data["global"].items():
             nc.setncattr(name, val)
 
-        for i in range(0, len(self._data['remarks'])):
-            note_name = f'REMARK_{(i+1):02}'
-            nc.setncattr(note_name, self._data['remarks'][i])
+        for i in range(0, len(self._data["remarks"])):
+            note_name = f"REMARK_{(i+1):02}"
+            nc.setncattr(note_name, self._data["remarks"][i])
             # par[note_name] = meta['parameter_notes'][i]
 
-        isofmt = '%Y-%m-%dT%H:%M:%SZ'   
+        isofmt = "%Y-%m-%dT%H:%M:%SZ"
         nc.setncattr(
-            'CREATION_DATE', 
-            pytz.utc.localize(datetime.utcnow()).strftime(isofmt)
+            "CREATION_DATE", pytz.utc.localize(datetime.utcnow()).strftime(isofmt)
         )
 
         nc.close()
+
 
 # isofmt = '%Y-%m-%dT%H:%M:%SZ'
 
