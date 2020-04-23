@@ -9,7 +9,7 @@ from netCDF4 import Dataset, date2num
 class Data:
     def __init__(self):
 
-        self.EPS_GAP = 1.0e35
+        self.EPS_GAP = 1.e35
         self._data = dict()
         self._metadata = None
 
@@ -131,7 +131,10 @@ class Data:
                                 elif next_line.startswith("#"):
                                     break
                                 else:
-                                    line = dfile.readline().strip()  # units
+                                    # line = dfile.readline().strip()  # units
+                                    self._data["parameters"][name][
+                                        "units"
+                                    ] = dfile.readline().strip()
                                     self._data["parameters"][name][
                                         "instrument_label"
                                     ] = dfile.readline().strip()
@@ -223,36 +226,46 @@ class Data:
 
         self.load_epic_file()
 
-        outfile = self.base_filename + ".cdf"
+        nc_outfile = self.base_filename + ".nc"
+        cdf_outfile = self.base_filename + ".cdf"
 
-        print(f"writing netCDF file: {outfile}")
+        print(f"writing netCDF files:\n \tuser: {nc_outfile}\n\tplot: {cdf_outfile}")
         try:
-            nc = Dataset(outfile, "w", format="NETCDF4")
+            nc = Dataset(nc_outfile, "w", format="NETCDF4")
+            cdf = Dataset(cdf_outfile, "w", format="NETCDF4")
         except Exception as e:
             print(f"write error AS: {e}")
             return None
 
         # create dimensions
-        time_dim = nc.createDimension("time", len(self._data["time"]))
+        time_dim_cdf = cdf.createDimension("time", len(self._data["time"]))
+        time_dim_nc = nc.createDimension("time", len(self._data["time"]))
 
         # create variables
-        time_var = nc.createVariable("time", "f8", ("time"))
-        time_var.units = "seconds since 1970-01-01T00:00:00Z"
-        time_var[:] = date2num(self._data["time"], units=time_var.units)
+        time_var_cdf = cdf.createVariable("time", "f8", ("time"))
+        time_var_cdf.units = "seconds since 1970-01-01T00:00:00Z"
+        time_var_cdf[:] = date2num(self._data["time"], units=time_var_cdf.units)
+
+        time_var_nc = nc.createVariable("time", "f8", ("time"))
+        time_var_nc.units = "seconds since 1970-01-01T00:00:00Z"
+        time_var_nc[:] = date2num(self._data["time"], units=time_var_nc.units)
 
         for name, meta in self._data["parameters"].items():
+
+            # generate plot version: .cdf
             if meta["epic_key_code"] in self.epic_key:
                 epic = self.epic_key[meta["epic_key_code"]]
 
                 par_name = f"{epic['name']}_{meta['epic_key_code']}"
-                par = nc.createVariable(
-                    # par_name,
-                    epic["name"],
+                par = cdf.createVariable(
+                    par_name,
+                    # epic["name"],
                     "f8",
                     ("time"),
                 )
+                epic_units = epic['units']
                 # par['name'] = epic['name']
-                # par.setncattr('name', epic['name'])
+                par.setncattr('name', epic['name'])
                 par.long_name = epic["long_name"]
                 par.generic_name = epic["generic_name"]
                 par.FORTRAN_format = epic["FORTRAN_format"]
@@ -266,34 +279,79 @@ class Data:
                 for i in range(0, len(meta["parameter_notes"])):
                     note_name = f"note_{(i+1):02}"
                     par.setncattr(note_name, meta["parameter_notes"][i])
-                    # par[note_name] = meta['parameter_notes'][i]
 
                 vals = [
-                    x if x != float(par.gap_value) else self.EPS_GAP
+                    # x if x != float(par.gap_value) else self.EPS_GAP
+                    x if x != float(par.gap_value) else None
                     for x in self._data[name]
                 ]
-                # par[:] = self._data[name]
+                # vals2 = []
+                # for x in self._data[name]:
+                #     if x == float(par.gap_value):
+                #         # vals2.append(1.e35)
+                #         vals2.append(None)
+                #     else:
+                #         vals2.append(x)
+
                 par[:] = vals
-        #     var_name = data['name'] + '_' + data['epic_key_code']
+                # par[:] = self._data[name]
+
+            # generate user version: .nc
+            par_nc = nc.createVariable(
+                name,
+                "f8",
+                ("time"),
+            )
+            # par_nc.units = meta["units"]
+            par_nc.units = epic_units
+            par_nc.epic_code = meta["epic_key_code"]
+            par_nc.instr_id = meta["instrument_label"]
+            par_nc.min_value = meta["legal_min_value"]
+            par_nc.max_value = meta["legal_max_value"]
+            par_nc.gap_value = meta["missing_value_code"]
+            for i in range(0, len(meta["parameter_notes"])):
+                note_name = f"note_{(i+1):02}"
+                par_nc.setncattr(note_name, meta["parameter_notes"][i])
+
+            vals = [
+                x if x != float(par_nc.gap_value) else None
+                for x in self._data[name]
+            ]
+            par_nc[:] = vals
+
+
 
         # set global attributes
         for name, val in self._data["global"].items():
+            cdf.setncattr(name, val)
             nc.setncattr(name, val)
 
         for i in range(0, len(self._data["remarks"])):
             note_name = f"REMARK_{(i+1):02}"
+            cdf.setncattr(note_name, self._data["remarks"][i])
             nc.setncattr(note_name, self._data["remarks"][i])
-            # par[note_name] = meta['parameter_notes'][i]
 
-        isofmt = "%Y-%m-%dT%H:%M:%SZ"
+        # isofmt = "%Y-%m-%dT%H:%M:%SZ"
+        dt = datetime.utcnow()
+        cdf.setncattr(
+            # "CREATION_DATE", pytz.utc.localize(datetime.utcnow()).strftime(isofmt)
+            "CREATION_DATE", dt_to_string(dt)
+        )
         nc.setncattr(
-            "CREATION_DATE", pytz.utc.localize(datetime.utcnow()).strftime(isofmt)
+            # "CREATION_DATE", pytz.utc.localize(datetime.utcnow()).strftime(isofmt)
+            "CREATION_DATE", dt_to_string(dt)
         )
 
+        cdf.close()
         nc.close()
 
 
-# isofmt = '%Y-%m-%dT%H:%M:%SZ'
+
+isofmt = '%Y-%m-%dT%H:%M:%SZ'
+
+def dt_to_string(dt):
+    utc = pytz.utc.localize(dt)
+    return utc.strftime(isofmt)
 
 # def string_to_dt(dt_string):
 #     dt = datetime.strptime(dt_string, isofmt)
@@ -317,6 +375,7 @@ if __name__ == "__main__":
     # print(f'fname={fname}, kw={kw}')
 
     d = Data()
-    # d.load_acf_file('ATOMIC_CN_v1.acf')
+    # d.load_acf_file('ATOMIC_SW_v0.acf')
     d.load_acf_file(fname)
     d.write_nc_file()
+    print('done')
