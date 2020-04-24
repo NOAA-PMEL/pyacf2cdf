@@ -309,9 +309,23 @@ class Data:
             par_nc.min_value = meta["legal_min_value"]
             par_nc.max_value = meta["legal_max_value"]
             par_nc.gap_value = meta["missing_value_code"]
-            for i in range(0, len(meta["parameter_notes"])):
-                note_name = f"note_{(i+1):02}"
-                par_nc.setncattr(note_name, meta["parameter_notes"][i])
+            # for i in range(0, len(meta["parameter_notes"])):
+            #     note_name = f"note_{(i+1):02}"
+            #     par_nc.setncattr(note_name, meta["parameter_notes"][i])
+
+            for note in meta['parameter_notes']:
+                parts = note.split('=')
+                note_name = parts[0].lower()
+                if note_name in meta:
+                    note_name = f'note_{note_name}'
+                note_text = ''
+                if len(parts) > 2:
+                    for text in parts[1:]:
+                        note_text += f'{text}='
+                    note_text = note_text.rstrip('=')
+                else:
+                    note_text = parts[1]  
+                par_nc.setncattr(note_name, note_text)
 
             vals = [
                 x if x != float(par_nc.gap_value) else None
@@ -344,6 +358,8 @@ class Data:
 
         cdf.close()
         nc.close()
+
+        print('done')
 
 
 
@@ -378,4 +394,4 @@ if __name__ == "__main__":
     # d.load_acf_file('ATOMIC_SW_v0.acf')
     d.load_acf_file(fname)
     d.write_nc_file()
-    print('done')
+
