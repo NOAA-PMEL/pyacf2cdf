@@ -78,7 +78,7 @@ class Data:
                 header = True
                 param_order = []
                 # for line in list(dfile):
-
+                has_seconds = False
                 while True:
                     if header:
 
@@ -108,6 +108,8 @@ class Data:
                             line = dfile.readline().strip()
                             params = dfile.readline().strip().split(" ")
                             self._data["time_parameters"] = params
+                            if "second" in params:
+                                has_seconds = True
 
                         elif next_line == "#PARAMETER#":
                             line = dfile.readline().strip()
@@ -177,7 +179,10 @@ class Data:
                         DD = vals[2]
                         hh = vals[3]
                         mm = vals[4]
-                        ss = vals[5]
+                        if has_seconds:
+                            ss = vals[5]
+                        else:
+                            ss = 0
 
                         if "time" not in self._data:
                             self._data["time"] = []
@@ -196,7 +201,10 @@ class Data:
                         )
 
                         for i in range(0, len(param_order)):
-                            col = i + 6
+                            time_cols = 5
+                            if has_seconds:
+                                time_cols = 6
+                            col = i + time_cols
 
                             if param_order[i] not in self._data:
                                 self._data[param_order[i]] = []
@@ -380,6 +388,8 @@ if __name__ == "__main__":
     # print(f'args : {sys.argv}')
 
     fname = sys.argv[1]
+    # fname = "/home/derek/Downloads/NEAQS2002_met.acf"
+    # fname = "/home/derek/Downloads/ACE1_sw.acf"
     # kw = {}
     # # if len(sys.argv) > 2:
     #     # kw = {}
