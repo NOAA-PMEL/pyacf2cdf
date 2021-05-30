@@ -9,7 +9,7 @@ from netCDF4 import Dataset, date2num
 class Data:
     def __init__(self):
 
-        self.EPS_GAP = 1.e35
+        self.EPS_GAP = 1.0e35
         self._data = dict()
         self._metadata = None
 
@@ -271,9 +271,9 @@ class Data:
                     "f8",
                     ("time"),
                 )
-                epic_units = epic['units']
+                epic_units = epic["units"]
                 # par['name'] = epic['name']
-                par.setncattr('name', epic['name'])
+                par.setncattr("name", epic["name"])
                 par.long_name = epic["long_name"]
                 par.generic_name = epic["generic_name"]
                 par.FORTRAN_format = epic["FORTRAN_format"]
@@ -321,27 +321,24 @@ class Data:
             #     note_name = f"note_{(i+1):02}"
             #     par_nc.setncattr(note_name, meta["parameter_notes"][i])
 
-            for note in meta['parameter_notes']:
-                parts = note.split('=')
+            for note in meta["parameter_notes"]:
+                parts = note.split("=")
                 note_name = parts[0].lower()
                 if note_name in meta:
-                    note_name = f'note_{note_name}'
-                note_text = ''
+                    note_name = f"note_{note_name}"
+                note_text = ""
                 if len(parts) > 2:
                     for text in parts[1:]:
-                        note_text += f'{text}='
-                    note_text = note_text.rstrip('=')
+                        note_text += f"{text}="
+                    note_text = note_text.rstrip("=")
                 else:
-                    note_text = parts[1]  
+                    note_text = parts[1]
                 par_nc.setncattr(note_name, note_text)
 
             vals = [
-                x if x != float(par_nc.gap_value) else None
-                for x in self._data[name]
+                x if x != float(par_nc.gap_value) else None for x in self._data[name]
             ]
             par_nc[:] = vals
-
-
 
         # set global attributes
         for name, val in self._data["global"].items():
@@ -357,25 +354,28 @@ class Data:
         dt = datetime.utcnow()
         cdf.setncattr(
             # "CREATION_DATE", pytz.utc.localize(datetime.utcnow()).strftime(isofmt)
-            "CREATION_DATE", dt_to_string(dt)
+            "CREATION_DATE",
+            dt_to_string(dt),
         )
         nc.setncattr(
             # "CREATION_DATE", pytz.utc.localize(datetime.utcnow()).strftime(isofmt)
-            "CREATION_DATE", dt_to_string(dt)
+            "CREATION_DATE",
+            dt_to_string(dt),
         )
 
         cdf.close()
         nc.close()
 
-        print('done')
+        print("done")
 
 
+isofmt = "%Y-%m-%dT%H:%M:%SZ"
 
-isofmt = '%Y-%m-%dT%H:%M:%SZ'
 
 def dt_to_string(dt):
     utc = pytz.utc.localize(dt)
     return utc.strftime(isofmt)
+
 
 # def string_to_dt(dt_string):
 #     dt = datetime.strptime(dt_string, isofmt)
@@ -404,4 +404,3 @@ if __name__ == "__main__":
     # d.load_acf_file('ATOMIC_SW_v0.acf')
     d.load_acf_file(fname)
     d.write_nc_file()
-
